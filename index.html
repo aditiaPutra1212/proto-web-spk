@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPK Mahasiswa Terbaik - Universitas Teknokrat Indonesia</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { padding-top: 70px; background-color: #f8f9fa; }
+    .navbar { background-color: #003366; }
+    .navbar-brand, .nav-link, .navbar-toggler-icon { color: #fff !important; }
+    .section-title { margin-top: 40px; margin-bottom: 20px; }
+    .logo { width: 40px; height: 40px; margin-right: 10px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar fixed-top navbar-expand-lg">
+    <div class="container-fluid">
+      <a class="navbar-brand d-flex align-items-center" href="#">
+        <img src="Logo_Teknokrat.png" class="logo" alt="Logo Teknokrat">
+        SPK Mahasiswa Terbaik
+      </a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Dashboard -->
+    <h2 class="section-title">Dashboard</h2>
+    <div class="row text-center">
+      <div class="col-md-4"><div class="card"><div class="card-body">Mahasiswa: <strong id="totalMhs">0</strong></div></div></div>
+      <div class="col-md-4"><div class="card"><div class="card-body">Kriteria: <strong>5</strong></div></div></div>
+      <div class="col-md-4"><div class="card"><div class="card-body">Data Penilaian: <strong id="dataCount">0</strong></div></div></div>
+    </div>
+
+    <!-- Input Data -->
+    <h2 class="section-title">Input Data Mahasiswa</h2>
+    <form id="formInput">
+      <div class="row">
+        <div class="col-md-4"><input type="text" class="form-control mb-2" placeholder="Nama" id="nama" required></div>
+        <div class="col-md-4"><input type="text" class="form-control mb-2" placeholder="NIM" id="nim" required></div>
+        <div class="col-md-4"><input type="number" step="0.01" class="form-control mb-2" placeholder="IPK" id="ipk" required></div>
+        <div class="col-md-4"><input type="number" class="form-control mb-2" placeholder="Lama Studi (semester)" id="lama" required></div>
+        <div class="col-md-4"><input type="number" class="form-control mb-2" placeholder="Prestasi (1-5)" id="prestasi" required></div>
+        <div class="col-md-4"><input type="number" class="form-control mb-2" placeholder="Organisasi (1-5)" id="organisasi" required></div>
+        <div class="col-12"><button type="submit" class="btn btn-primary mt-2">Tambah Data</button></div>
+      </div>
+    </form>
+
+    <!-- Input Bobot -->
+    <h2 class="section-title">Input Bobot Kriteria</h2>
+    <div class="row">
+      <div class="col-md-2"><input type="number" step="0.1" class="form-control mb-2" placeholder="Bobot IPK" id="b_ipk" value="0.3"></div>
+      <div class="col-md-2"><input type="number" step="0.1" class="form-control mb-2" placeholder="Bobot Lama" id="b_lama" value="0.2"></div>
+      <div class="col-md-2"><input type="number" step="0.1" class="form-control mb-2" placeholder="Bobot Prestasi" id="b_prestasi" value="0.2"></div>
+      <div class="col-md-2"><input type="number" step="0.1" class="form-control mb-2" placeholder="Bobot Organisasi" id="b_organisasi" value="0.3"></div>
+    </div>
+
+    <!-- Output -->
+    <h2 class="section-title">Hasil Perhitungan WP</h2>
+    <button class="btn btn-success mb-3" onclick="hitungWP()">Hitung WP</button>
+    <table class="table table-bordered">
+      <thead><tr><th>Nama</th><th>Nilai S</th><th>Nilai V</th><th>Peringkat</th></tr></thead>
+      <tbody id="hasilWP"></tbody>
+    </table>
+    <canvas id="chartWP" height="100"></canvas>
+  </div>
+
+  <script>
+    let dataMhs = [];
+    document.getElementById("formInput").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const mhs = {
+        nama: nama.value,
+        nim: nim.value,
+        ipk: parseFloat(ipk.value),
+        lama: parseFloat(lama.value),
+        prestasi: parseFloat(prestasi.value),
+        organisasi: parseFloat(organisasi.value)
+      };
+      dataMhs.push(mhs);
+      totalMhs.textContent = dataMhs.length;
+      dataCount.textContent = dataMhs.length;
+      formInput.reset();
+    });
+
+    function hitungWP() {
+      const bobot = [parseFloat(b_ipk.value), parseFloat(b_lama.value), parseFloat(b_prestasi.value), parseFloat(b_organisasi.value)];
+      const jumlah = bobot.reduce((a, b) => a + b);
+      const w = bobot.map(b => b / jumlah);
+
+      let hasil = dataMhs.map(m => {
+        let S = Math.pow(m.ipk, w[0]) * Math.pow(1/m.lama, w[1]) * Math.pow(m.prestasi, w[2]) * Math.pow(m.organisasi, w[3]);
+        return { ...m, S };
+      });
+
+      const totalS = hasil.reduce((a, b) => a + b.S, 0);
+      hasil = hasil.map(m => ({ ...m, V: m.S / totalS }));
+      hasil.sort((a, b) => b.V - a.V);
+      
+      const tbody = document.getElementById("hasilWP");
+      tbody.innerHTML = "";
+      hasil.forEach((m, i) => {
+        tbody.innerHTML += `<tr><td>${m.nama}</td><td>${m.S.toFixed(4)}</td><td>${m.V.toFixed(4)}</td><td>${i+1}</td></tr>`;
+      });
+
+      const ctx = document.getElementById("chartWP").getContext("2d");
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: hasil.map(m => m.nama),
+          datasets: [{ label: 'Nilai Preferensi (V)', data: hasil.map(m => m.V), backgroundColor: '#007bff' }]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+      });
+    }
+  </script>
+</body>
+</html>
